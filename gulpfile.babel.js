@@ -15,7 +15,9 @@ import sourcemaps from 'gulp-sourcemaps'
 import util from 'gulp-util'
 import webpack from 'webpack-stream'
 import webpackConfig from './.webpackrc.js'
+import rev from 'gulp-rev'
 
+const path = require('path')
 const browserSync = BrowserSync.create()
 const gulpConfig = GulpConfig()
 const generatorEnvVar = gulpConfig.generator.label.toUpperCase() + '_ENV'
@@ -35,8 +37,12 @@ gulp.task('generator', cb => build(cb))
  * Builds all static assets, and then
  * compiles the static site
  */
-gulp.task('build', ['clean'], cb => {
+gulp.task('build', ['clean:dist'], cb => {
   runsequence(['styles', 'scripts', 'images', 'svg'], 'generator', cb)
+})
+
+gulp.task('build:prod', ['clean:dist', 'clean:static'], cb => {
+  runsequence(['styles', 'scripts', 'images', 'svg'], 'revision', 'generator', cb)
 })
 
 /**
@@ -239,8 +245,27 @@ gulp.task('svg', () => {
  * @task clean
  * Cleans the build and temp directories
  */
-gulp.task('clean', () => {
+gulp.task('clean:dist', () => {
   return del([gulpConfig.tmp, gulpConfig.build], {dot: true})
+})
+
+gulp.task('clean:static', () => {
+  return del([gulpConfig.scripts.dest, gulpConfig.styles.dest], {dot: true})
+})
+
+gulp.task('revision', () => {
+  return gulp
+    .src(
+      [
+        path.join(`${gulpConfig.styles.dest}/*.css`),
+        path.join(`${gulpConfig.scripts.dest}/*.js`)
+      ],
+      { base: `${gulpConfig.dest}/static` }
+    )
+    .pipe(rev())
+    .pipe(gulp.dest(`${gulpConfig.dest}/static`))
+    .pipe(rev.manifest('revmanifest.json'))
+    .pipe(gulp.dest(`${gulpConfig.dest}/data/`))
 })
 
 /**
